@@ -20,6 +20,7 @@ abstract class ActivityConfigTasker<TInput : Any, TOutput : Any, TActionRunner :
     override val context get() = applicationContext
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PermissionHelper.requestRequiredPermissions(this)
         binding = inflateBinding(layoutInflater)
         if (!isConfigurable) {
             taskerHelper.finishForTasker()
