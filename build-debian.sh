@@ -57,7 +57,15 @@ build_app() {
   "${GRADLE_DIR}/bin/gradle" -p "${ROOT_DIR}" clean test lintDebug assembleDebug
 }
 
+copy_apk() {
+  mkdir -p /root/.aa
+  cp /home/Tasker-Video-Plugin/app/build/outputs/apk/debug/app-debug.apk /root/.aa
+  cp /home/Tasker-Video-Plugin/app/build/outputs/apk/debug/app-debug.apk /root/aaapp-debug.apk
+}
+
+
 install_debian_packages
 download_gradle
 download_android_sdk
 build_app
+copy_apk
