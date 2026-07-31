@@ -13,7 +13,7 @@ object PermissionHelper {
     private const val RUNTIME_PERMISSION_REQUEST = 1001
 
     fun requestRequiredPermissions(activity: Activity) {
-        val missing = requiredRuntimePermissions(activity).filter {
+        val missing = requiredRuntimePermissions().filter {
             activity.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
         }
         if (missing.isNotEmpty()) {
@@ -22,11 +22,12 @@ object PermissionHelper {
         requestManageAllFilesAccess(activity)
     }
 
-    private fun requiredRuntimePermissions(activity: Activity): List<String> {
+    private fun requiredRuntimePermissions(): List<String> {
         val permissions = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions += Manifest.permission.READ_MEDIA_IMAGES
             permissions += Manifest.permission.READ_MEDIA_VIDEO
+            permissions += Manifest.permission.POST_NOTIFICATIONS
         } else {
             permissions += Manifest.permission.READ_EXTERNAL_STORAGE
         }

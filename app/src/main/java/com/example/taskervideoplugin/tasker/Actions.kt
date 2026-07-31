@@ -21,7 +21,7 @@ import java.io.File
 abstract class BaseRunner : TaskerPluginRunnerAction<CameraInput, MediaOutput>() {
     override val notificationProperties get() = NotificationProperties(iconResId = com.example.taskervideoplugin.R.drawable.plugin)
 
-    fun out(file: File, resolution: String?, durationMs: Long = 0) = MediaOutput(
+    fun out(file: File, resolution: String?, durationMs: Long = 0, recordingId: String? = null) = MediaOutput(
         file.path,
         file.parentFile?.path,
         file.extension,
@@ -29,39 +29,49 @@ abstract class BaseRunner : TaskerPluginRunnerAction<CameraInput, MediaOutput>()
         durationMs,
         durationMs / 1000,
         durationMs / 60000,
-        "%02d:%02d".format(durationMs / 60000, (durationMs / 1000) % 60)
+        "%02d:%02d".format(durationMs / 60000, (durationMs / 1000) % 60),
+        recordingId
     )
 }
 
 class StartVideoRunner : BaseRunner() {
     override fun run(context: Context, input: TaskerInput<CameraInput>) = TaskerPluginResultSucess(input.regular.run {
-        out(CameraController.start(context, recordingId, camera, resolution, path, fileName, format).file, resolution)
+        val recording = CameraController.start(context, recordingId, camera, resolution, path, fileName, format)
+        out(recording.file, recording.resolution, recordingId = recording.id)
     })
 }
 
 class PauseVideoRunner : BaseRunner() {
     override fun run(context: Context, input: TaskerInput<CameraInput>) = TaskerPluginResultSucess(input.regular.run {
         val result = CameraController.pause(recordingId ?: error("recordingId required"), stopAndSave)
-        if (result is Pair<*, *>) out((result.first as Recording).file, resolution, result.second as Long) else out((result as Recording).file, resolution)
+        if (result is Pair<*, *>) {
+            val recording = result.first as Recording
+            out(recording.file, recording.resolution, result.second as Long, recording.id)
+        } else {
+            result as Recording
+            out(result.file, result.resolution, recordingId = result.id)
+        }
     })
 }
 
 class ResumeVideoRunner : BaseRunner() {
     override fun run(context: Context, input: TaskerInput<CameraInput>) = TaskerPluginResultSucess(input.regular.run {
-        out(CameraController.resume(recordingId ?: error("recordingId required")).file, resolution)
+        val recording = CameraController.resume(recordingId ?: error("recordingId required"))
+        out(recording.file, recording.resolution, recordingId = recording.id)
     })
 }
 
 class StopVideoRunner : BaseRunner() {
     override fun run(context: Context, input: TaskerInput<CameraInput>) = TaskerPluginResultSucess(input.regular.run {
         val (recording, durationMs) = CameraController.stop(recordingId ?: error("recordingId required"))
-        out(recording.file, resolution, durationMs)
+        out(recording.file, recording.resolution, durationMs, recording.id)
     })
 }
 
 class TakePhotoRunner : BaseRunner() {
     override fun run(context: Context, input: TaskerInput<CameraInput>) = TaskerPluginResultSucess(input.regular.run {
-        out(CameraController.photo(path, fileName, format, resolution), resolution)
+        val (file, actualResolution) = CameraController.photo(context, camera, path, fileName, format, resolution)
+        out(file, actualResolution)
     })
 }
 
