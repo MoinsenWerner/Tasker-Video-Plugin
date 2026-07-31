@@ -13,11 +13,11 @@ ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${DEPS_DIR}/android-sdk}"
 install_debian_packages() {
   if command -v apt-get >/dev/null 2>&1; then
     if [ "${EUID}" -eq 0 ]; then
-      # apt-get update
-      apt-get install -y ca-certificates curl unzip
+      apt-get update
+      apt-get install -y ca-certificates curl unzip openjdk-17-jdk
     elif command -v sudo >/dev/null 2>&1; then
-      # sudo apt-get update
-      sudo apt-get install -y ca-certificates curl unzip
+      sudo apt-get update
+      sudo apt-get install -y ca-certificates curl unzip openjdk-17-jdk
     else
       echo "apt-get dependencies required: ca-certificates curl unzip openjdk-17-jdk" >&2
       echo "Run this script as root or install them manually." >&2
@@ -50,22 +50,14 @@ download_android_sdk() {
 }
 
 build_app() {
-  export JAVA_HOME="/usr/lib/jvm/zulu-17-amd64"
+  export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
   export PATH="${JAVA_HOME}/bin:${PATH}"
   export ANDROID_HOME="${ANDROID_SDK_ROOT}"
   export ANDROID_SDK_ROOT
   "${GRADLE_DIR}/bin/gradle" -p "${ROOT_DIR}" clean test lintDebug assembleDebug
 }
 
-copy_apk() {
-  mkdir -p /root/.aa
-  cp /home/Tasker-Video-Plugin/app/build/outputs/apk/debug/app-debug.apk /root/.aa
-  cp /home/Tasker-Video-Plugin/app/build/outputs/apk/debug/app-debug.apk /root/aaapp-debug.apk
-}
-
-
 install_debian_packages
 download_gradle
 download_android_sdk
 build_app
-copy_apk
