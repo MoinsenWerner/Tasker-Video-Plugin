@@ -9,6 +9,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
@@ -83,12 +84,18 @@ object CameraLensSelector {
 }
 
 object ResolutionSelector {
+    private val resolutionPattern = Regex("^\\s*(\\d+)\\s*[xX×]\\s*(\\d+)")
+
+    fun parseDimensions(value: String?): Pair<Int, Int>? {
+        val match = value?.let(resolutionPattern::find) ?: return null
+        val width = match.groupValues[1].toIntOrNull() ?: return null
+        val height = match.groupValues[2].toIntOrNull() ?: return null
+        return if (width > 0 && height > 0) width to height else null
+    }
+
     fun parse(value: String?): Size? {
-        val parts = value?.trim()?.lowercase()?.split('x') ?: return null
-        if (parts.size != 2) return null
-        val width = parts[0].trim().toIntOrNull() ?: return null
-        val height = parts[1].trim().toIntOrNull() ?: return null
-        return if (width > 0 && height > 0) Size(width, height) else null
+        val (width, height) = parseDimensions(value) ?: return null
+        return Size(width, height)
     }
 
     fun closest(requested: Size?, available: Array<Size>): Size {
@@ -109,6 +116,8 @@ private data class ActiveRecording(
     val context: Context
 )
 
+private data class PreparedRecorder(val recorder: MediaRecorder, val size: Size)
+
 object CameraController {
     private const val CAMERA_TIMEOUT_SECONDS = 15L
     private val recordings = ConcurrentHashMap<String, ActiveRecording>()
@@ -126,7 +135,7 @@ object CameraController {
         format: String?
     ): Recording {
         requirePermissions(context, includeAudio = true)
-        startCameraService(context)
+        startCameraService(context, includeAudio = true)
         val recordingId = id?.trim()?.takeIf(String::isNotEmpty) ?: System.currentTimeMillis().toString()
         require(recordings[recordingId] == null) { "Recording $recordingId is already active" }
 
@@ -136,9 +145,10 @@ object CameraController {
         val sizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             ?.getOutputSizes(MediaRecorder::class.java)
             ?: error("Camera does not support video recording")
-        val selectedSize = ResolutionSelector.closest(ResolutionSelector.parse(resolution), sizes)
         val output = FileHelper.file(path, name, format)
-        val recorder = createRecorder(context, output, selectedSize)
+        val prepared = prepareRecorder(context, output, ResolutionSelector.parse(resolution), sizes)
+        val selectedSize = prepared.size
+        val recorder = prepared.recorder
 
         val cameraDevice = try {
             openCamera(manager, cameraId)
@@ -233,7 +243,7 @@ object CameraController {
         resolution: String?
     ): Pair<File, String> {
         requirePermissions(context, includeAudio = false)
-        startCameraService(context)
+        startCameraService(context, includeAudio = false)
         val manager = context.getSystemService(CameraManager::class.java)
         val cameraId = CameraLensSelector.choose(context, camera)
         val sizes = manager.getCameraCharacteristics(cameraId)
@@ -255,18 +265,42 @@ object CameraController {
 
     private fun createRecorder(context: Context, output: File, size: Size): MediaRecorder {
         val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else MediaRecorder()
-        val isThreeGp = output.extension.equals("3gp", true) || output.extension.equals("3gpp", true)
-        recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-        recorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
-        recorder.setOutputFormat(if (isThreeGp) MediaRecorder.OutputFormat.THREE_GPP else MediaRecorder.OutputFormat.MPEG_4)
-        recorder.setOutputFile(output.absolutePath)
-        recorder.setVideoEncodingBitRate(max(2_000_000, size.width * size.height * 5))
-        recorder.setVideoFrameRate(30)
-        recorder.setVideoSize(size.width, size.height)
-        recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        recorder.prepare()
-        return recorder
+        try {
+            val isThreeGp = output.extension.equals("3gp", true) || output.extension.equals("3gpp", true)
+            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+            recorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            recorder.setOutputFormat(if (isThreeGp) MediaRecorder.OutputFormat.THREE_GPP else MediaRecorder.OutputFormat.MPEG_4)
+            recorder.setOutputFile(output.absolutePath)
+            recorder.setVideoEncodingBitRate((size.width.toLong() * size.height * 5).coerceIn(2_000_000L, 20_000_000L).toInt())
+            recorder.setVideoFrameRate(30)
+            recorder.setVideoSize(size.width, size.height)
+            recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            recorder.prepare()
+            return recorder
+        } catch (error: Throwable) {
+            recorder.release()
+            throw error
+        }
+    }
+
+    private fun prepareRecorder(context: Context, output: File, requested: Size?, available: Array<Size>): PreparedRecorder {
+        val candidates = listOfNotNull(
+            ResolutionSelector.closest(requested, available),
+            ResolutionSelector.closest(Size(1920, 1080), available),
+            ResolutionSelector.closest(Size(1280, 720), available),
+            ResolutionSelector.closest(Size(640, 480), available)
+        ).distinctBy { it.width to it.height }
+        var lastError: Throwable? = null
+        for (candidate in candidates) {
+            try {
+                return PreparedRecorder(createRecorder(context, output, candidate), candidate)
+            } catch (error: Throwable) {
+                lastError = error
+                output.delete()
+            }
+        }
+        throw IllegalStateException("MediaRecorder could not prepare any supported camera resolution", lastError)
     }
 
     @SuppressLint("MissingPermission")
@@ -407,8 +441,8 @@ object CameraController {
         }
     }
 
-    private fun startCameraService(context: Context) {
-        val intent = Intent(context, CameraRecordingService::class.java)
+    private fun startCameraService(context: Context, includeAudio: Boolean) {
+        val intent = Intent(context, CameraRecordingService::class.java).putExtra(CameraRecordingService.EXTRA_INCLUDE_AUDIO, includeAudio)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
     }
 }
@@ -467,6 +501,8 @@ object FrameExtractor {
 }
 
 class CameraRecordingService : Service() {
+    private lateinit var notification: Notification
+
     override fun onCreate() {
         super.onCreate()
         val channelId = "camera"
@@ -475,7 +511,7 @@ class CameraRecordingService : Service() {
                 NotificationChannel(channelId, "Camera recording", NotificationManager.IMPORTANCE_LOW)
             )
         }
-        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId)
         } else {
             @Suppress("DEPRECATION") Notification.Builder(this)
@@ -484,10 +520,25 @@ class CameraRecordingService : Service() {
             .setSmallIcon(R.drawable.plugin)
             .setOngoing(true)
             .build()
-        startForeground(1, notification)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val type = if (intent?.getBooleanExtra(EXTRA_INCLUDE_AUDIO, false) == true) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            }
+            startForeground(1, notification, type)
+        } else {
+            startForeground(1, notification)
+        }
+        return START_NOT_STICKY
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    companion object {
+        const val EXTRA_INCLUDE_AUDIO = "includeAudio"
+    }
 }
