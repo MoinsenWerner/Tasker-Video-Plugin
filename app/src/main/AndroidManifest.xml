@@ -21,5 +21,6 @@
         <activity android:name=".tasker.TakePhotoActivity" android:exported="true" android:label="Foto aufnehmen"><intent-filter><action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING"/></intent-filter></activity>
         <activity android:name=".tasker.VideoToFramesActivity" android:exported="true" android:label="Video to frames"><intent-filter><action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING"/></intent-filter></activity>
         <activity android:name=".tasker.AudioBlockActivity" android:exported="true" android:label="Video Audio blockieren"><intent-filter><action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING"/></intent-filter></activity>
+        <activity android:name=".tasker.ExtractAudioActivity" android:exported="true" android:label="Audio aus Video extrahieren"><intent-filter><action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING"/></intent-filter></activity>
     </application>
 </manifest>

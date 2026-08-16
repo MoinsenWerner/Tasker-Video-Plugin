@@ -9,6 +9,7 @@ import com.example.taskervideoplugin.ActivityConfigTasker
 import com.example.taskervideoplugin.databinding.ActivityCameraConfigBinding
 import com.example.taskervideoplugin.media.CameraController
 import com.example.taskervideoplugin.media.FrameExtractor
+import com.example.taskervideoplugin.media.VideoAudioExtractor
 import com.example.taskervideoplugin.media.Recording
 import com.joaomgcd.taskerpluginlibrary.action.TaskerPluginRunnerAction
 import com.joaomgcd.taskerpluginlibrary.config.TaskerPluginConfig
@@ -107,6 +108,13 @@ class AudioBlockRunner : BaseRunner() {
     )
 }
 
+class ExtractAudioRunner : BaseRunner() {
+    override val outputPrefix = "vae_"
+    override fun run(context: Context, input: TaskerInput<CameraInput>) = TaskerPluginResultSucess(input.regular.run {
+        out(VideoAudioExtractor.extract(path, targetPath, fileName, format), null)
+    })
+}
+
 abstract class Helper<R : BaseRunner>(config: TaskerPluginConfig<CameraInput>, private val cls: Class<R>) : TaskerPluginConfigHelper<CameraInput, MediaOutput, R>(config) {
     override val runnerClass = cls
     override val inputClass = CameraInput::class.java
@@ -117,7 +125,7 @@ abstract class Helper<R : BaseRunner>(config: TaskerPluginConfig<CameraInput>, p
     }
 }
 
-enum class Field { CAMERA, RESOLUTION, PATH, FILE_NAME, FORMAT, RECORDING_ID, STOP_AND_SAVE, TARGET_PATH, BASE_NAME, FRAME_RATE, FRAMES, SCENE_NAME, ELEMENT_NAME, AUDIO_OPERATION }
+enum class Field { CAMERA, RESOLUTION, PATH, FILE_NAME, FORMAT, RECORDING_ID, STOP_AND_SAVE, TARGET_PATH, BASE_NAME, FRAME_RATE, FRAMES, SCENE_NAME, ELEMENT_NAME, AUDIO_OPERATION, AUDIO_EXTRACT }
 
 abstract class Config<R : BaseRunner, H : Helper<R>> : ActivityConfigTasker<CameraInput, MediaOutput, R, H, ActivityCameraConfigBinding>() {
     abstract val visibleFields: Set<Field>
@@ -203,6 +211,7 @@ private val pauseFields = setOf(Field.RECORDING_ID, Field.STOP_AND_SAVE)
 private val photoFields = setOf(Field.CAMERA, Field.PATH, Field.RESOLUTION, Field.FILE_NAME, Field.FORMAT)
 private val framesFields = setOf(Field.PATH, Field.TARGET_PATH, Field.BASE_NAME, Field.FORMAT, Field.FRAME_RATE, Field.FRAMES)
 private val audioFields = setOf(Field.SCENE_NAME, Field.ELEMENT_NAME, Field.AUDIO_OPERATION)
+private val extractAudioFields = setOf(Field.PATH, Field.TARGET_PATH, Field.FILE_NAME, Field.FORMAT, Field.AUDIO_EXTRACT)
 
 class StartVideoHelper(c: TaskerPluginConfig<CameraInput>) : Helper<StartVideoRunner>(c, StartVideoRunner::class.java)
 class StartVideoActivity : Config<StartVideoRunner, StartVideoHelper>() { override val visibleFields = videoStartFields; override fun getNewHelper(config: TaskerPluginConfig<CameraInput>) = StartVideoHelper(config) }
@@ -218,3 +227,5 @@ class VideoToFramesHelper(c: TaskerPluginConfig<CameraInput>) : Helper<VideoToFr
 class VideoToFramesActivity : Config<VideoToFramesRunner, VideoToFramesHelper>() { override val visibleFields = framesFields; override fun getNewHelper(config: TaskerPluginConfig<CameraInput>) = VideoToFramesHelper(config) }
 class AudioBlockHelper(c: TaskerPluginConfig<CameraInput>) : Helper<AudioBlockRunner>(c, AudioBlockRunner::class.java)
 class AudioBlockActivity : Config<AudioBlockRunner, AudioBlockHelper>() { override val visibleFields = audioFields; override fun getNewHelper(config: TaskerPluginConfig<CameraInput>) = AudioBlockHelper(config) }
+class ExtractAudioHelper(c: TaskerPluginConfig<CameraInput>) : Helper<ExtractAudioRunner>(c, ExtractAudioRunner::class.java)
+class ExtractAudioActivity : Config<ExtractAudioRunner, ExtractAudioHelper>() { override val visibleFields = extractAudioFields; override fun getNewHelper(config: TaskerPluginConfig<CameraInput>) = ExtractAudioHelper(config) }

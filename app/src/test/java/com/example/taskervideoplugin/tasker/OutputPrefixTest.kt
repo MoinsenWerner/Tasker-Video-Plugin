@@ -13,5 +13,6 @@ class OutputPrefixTest {
         assertEquals("fa_", TakePhotoRunner().outputPrefix)
         assertEquals("vtf_", VideoToFramesRunner().outputPrefix)
         assertEquals("vab_", AudioBlockRunner().outputPrefix)
+        assertEquals("vae_", ExtractAudioRunner().outputPrefix)
     }
 }

@@ -44,7 +44,11 @@ class ConfigUiEnhancer(
         installAudioOperationSelector()
 
         if (Field.PATH in fields) {
-            decorateInput(binding.path, folderButton = Field.FRAME_RATE !in fields, fileButton = Field.FRAME_RATE in fields)
+            decorateInput(
+                binding.path,
+                folderButton = Field.FRAME_RATE !in fields && Field.AUDIO_EXTRACT !in fields,
+                fileButton = Field.FRAME_RATE in fields || Field.AUDIO_EXTRACT in fields
+            )
         }
         if (Field.TARGET_PATH in fields) decorateInput(binding.targetPath, folderButton = true)
         listOf(
@@ -136,6 +140,7 @@ class ConfigUiEnhancer(
     private fun installFormatSelector() {
         if (Field.FORMAT !in fields) return
         val options = when {
+            Field.AUDIO_EXTRACT in fields -> listOf("mp3", "obb")
             Field.FRAME_RATE in fields -> listOf("jpg", "jpeg", "png", "webp")
             isPhotoAction() -> listOf("jpg", "jpeg", "png")
             else -> listOf("mp4", "3gp")
