@@ -1,0 +1,28 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <EditText android:id="@+id/camera" android:hint="front/back" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/resolution" android:hint="1920x1080" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/path" android:hint="Tasker/recordings" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/fileName" android:hint="video" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/format" android:hint="mp4/jpg" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/recordingId" android:hint="Recording ID" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <CheckBox android:id="@+id/stopAndSave" android:text="Aufnahme stoppen und speichern" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/targetPath" android:hint="Target path" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/baseName" android:hint="Base name" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/frameRate" android:hint="Framerate" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/frames" android:hint="Frames" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/sceneName" android:hint="Tasker-Szene" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/elementName" android:hint="Szenen-Element" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <EditText android:id="@+id/audioOperation" android:hint="Blockierung starten/aufheben" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <TextView android:text="Zurück drücken zum Speichern für Tasker." android:layout_width="match_parent" android:layout_height="wrap_content" />
+    </LinearLayout>
+</ScrollView>
